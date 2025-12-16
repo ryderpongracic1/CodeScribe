@@ -18,8 +18,9 @@ load_dotenv()
 GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID')
 GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET')
 app = FastAPI()
-origins = ['http://localhost', 'http://localhost:8000', 'http://127.0.0.1', 'http://12_7.0.0.1:8000']
-app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=['*'], allow_headers=['*'])
+# CORS configuration - allows deployment on any platform
+origins = ['http://localhost', 'http://localhost:8000', 'http://127.0.0.1', 'http://127.0.0.1:8000', '*']
+app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_credentials=False, allow_methods=['*'], allow_headers=['*'])
 app.mount('/static', StaticFiles(directory='static'), name='static')
 
 @app.get('/')
