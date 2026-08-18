@@ -20,9 +20,12 @@ def resolve_import_path(current_file: Path, module_name: str, level: int, projec
     return None
 
 def build_dependency_graph(file_paths: List[Path], project_root: Path, log_callback: Callable[[str], None]=print) -> nx.DiGraph:
-    """Builds a dependency graph from a list of Python files. Uses a callback for logging warnings."""
+    """Builds a dependency graph from a list of Python files.
+
+    Edges point from dependency to importer (dep_path -> file_path), so that
+    topological sort yields dependencies before the files that import them.
+    """
     graph = nx.DiGraph()
-    path_map = {p.stem: p for p in file_paths}
     for file_path in file_paths:
         graph.add_node(file_path)
         try:
@@ -34,7 +37,21 @@ def build_dependency_graph(file_paths: List[Path], project_root: Path, log_callb
                     if node.module:
                         dep_path = resolve_import_path(file_path, node.module, node.level, project_root)
                         if dep_path and dep_path in file_paths:
-                            graph.add_edge(file_path, dep_path)
+                            # Edge: dependency -> importer (so topo-sort documents deps first)
+                            graph.add_edge(dep_path, file_path)
+                    elif node.level > 0:
+                        # Handle 'from . import name' where module is None
+                        for alias in node.names:
+                            if alias.name:
+                                dep_path = resolve_import_path(file_path, alias.name, node.level, project_root)
+                                if dep_path and dep_path in file_paths:
+                                    graph.add_edge(dep_path, file_path)
+                elif isinstance(node, ast.Import):
+                    for alias in node.names:
+                        if alias.name:
+                            dep_path = resolve_import_path(file_path, alias.name, 0, project_root)
+                            if dep_path and dep_path in file_paths:
+                                graph.add_edge(dep_path, file_path)
         except Exception as e:
             log_callback(f'Warning: Could not parse {file_path.name} for dependencies. Skipping. Error: {e}')
     return graph
