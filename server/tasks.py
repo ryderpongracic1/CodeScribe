@@ -55,13 +55,18 @@ async def process_project(project_path: Path, description: str, readme_note: str
                     repo.git.add(A=True)
                     repo.index.commit('docs: Add AI-generated documentation by CodeScribe')
                     origin = repo.remote(name='origin')
-                    origin.push(new_branch_name, force=True)
+                    origin.push(new_branch_name)
                     pr_url = f'https://github.com/{repo_full_name}/pull/new/{new_branch_name}'
                     emit_event('subtask', {'parentId': 'output', 'id': 'git-push', 'status': 'success'})
                     emit_event('done', {'type': 'github', 'url': pr_url, 'message': '✅ Successfully pushed changes!'})
                 except GitCommandError as e:
-                    emit_event('log', {'message': f'Git Error: {e}'})
-                    raise RuntimeError(f'Failed to push to GitHub: {e}')
+                    emit_event('subtask', {'parentId': 'output', 'id': 'git-push', 'status': 'error'})
+                    error_msg = str(e)
+                    if 'rejected' in error_msg.lower() or 'non-fast-forward' in error_msg.lower():
+                        emit_event('error', f"Push rejected: branch '{new_branch_name}' already exists on remote or has diverged. Please use a different branch name.")
+                    else:
+                        emit_event('error', f'Failed to push to GitHub. Please check your permissions and try again.')
+                    return
             else:
                 emit_event('subtask', {'parentId': 'output', 'listId': 'output-step-list', 'id': 'zip-create', 'name': 'Creating downloadable ZIP file...', 'status': 'in-progress'})
                 temp_dir = tempfile.gettempdir()
