@@ -14,3 +14,5 @@ aiohttp
 sse-starlette
 PyGithub
 requests
+# Source-preserving docstring insertion
+libcst
