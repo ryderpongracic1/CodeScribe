@@ -121,12 +121,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const handleAuth = () => {
     const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get("token");
     const error = urlParams.get("error");
+
+    // Token is delivered in the URL fragment (#token=...) to avoid leaking
+    // into server logs, browser history, or Referer headers.
+    const hash = window.location.hash;
+    let token = null;
+    if (hash && hash.startsWith("#token=")) {
+      token = hash.substring("#token=".length);
+    }
 
     if (error) alert(`Authentication failed: ${error}`);
     if (token && token !== "None")
       localStorage.setItem(GITHUB_TOKEN_KEY, token);
+    // Scrub both query params and fragment from the URL
     window.history.replaceState({}, document.title, "/");
 
     if (localStorage.getItem(GITHUB_TOKEN_KEY)) {
